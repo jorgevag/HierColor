@@ -1,0 +1,2 @@
+# HierColor
+Generate hierarchical colors
