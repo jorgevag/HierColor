@@ -1,0 +1,35 @@
+Idea 1: Plotting circles from hierarchy
+=======================================
+* will work even though there are no actual metric calculations
+  between the different rows.
+  I.e. this will work for categorical groups and such.
+
+* Possible approach: circle hierarchy
+
+Idea 2: Metric based hierarchial coloring
+========================================
+* Imagine you have data in clusters. Color the points based on their
+  similarities to their respective cluster.
+
+* Possible approach:
+  find a color-spaces dendogram similar to the dendogram of the 
+  clustering algorithm, create a mapping between the two and
+  color the points.
+  * This might require me to define some kind of optimization problem:
+    * minimize  sum_ij ( factor*colordistance(i,j) - actualdistance(i,j) )**2
+      
+
+
+
+
+Useful Notes
+============
+
+piechart/sunburst diagram in plotly/dash
+----------------------------------------
+https://github.com/plotly/dash-sunburst/blob/master/usage.py
+
+Sunburst Diagram Code Example in Python
+----------------------------------------
+https://stackoverflow.com/questions/12926779/how-to-make-a-sunburst-plot-in-r-or-python
+

@@ -118,7 +118,7 @@ rec_plot_circles(x=0, y=0, th=0, r=1, hier=hier0, ax=ax)
 
 ax.set_xlim((-2, 2))
 ax.set_ylim((-2, 2))
-#plt.show()
+plt.show()
 
 
 

@@ -1,25 +1,15 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 from io import StringIO
 
 import json
 
 from scipy.constants import pi
+from skimage.color import luv2rgb
 
 """
- Todo
- * return 'value', cell=(row, col), (bottom indicator not 
-   needed as it is as it is identified by empty list 
-   (I at least think this will do). Will be used to 
-    create row-mapping for "entire row coloring")
  NOTE: the hierarchy nodes can have only 1 missing type child,
        (another missing would be included in group).
- Endpoint? - If any instance of None (in children) then endpoint, 
-             and hence row-color defining
-             * should i have a field for this??
- ERROR: finding cell position is ruined when
-        it is set while collapsing dataframe!!!!!!!!!!!!!!!!
 """
 
 def print_json(input_json):
@@ -30,19 +20,37 @@ def print_json(input_json):
   print(json.dumps(input_json,
                    indent=2,
                    sort_keys=True))
+
+def print_hier(hier, level=0, indent='   '):
+  if hier:
+    print(level*indent + '{value : '   + str(hier['value']))
+    #print(level*indent + ' color : '   + str(hier['color']))
+    #print(level*indent + ' subnodes : '+ str(hier['subnodes']))
+    #print(level*indent + ' subsum : '  + str(hier['subsum']))
+    if hier['children']:
+      print(level*indent + ' children : [')
+      for child in hier['children']:
+        print_hier(child, level=level+1, indent=indent)
+      print(level*indent + ']}')
+    else:
+      print(level*indent + ' children : []}')
+  else:
+    print(level*indent + '{ None }')
   
+
 def df_to_hiercolor(df):
   # Initialize: 
   # 1) create new first column called 'root'
   # 2) convert last column (lowest layer) to nodes
   df.insert(loc=0, column='root', value=np.full(len(df), 'root'))
+  print(df)
   #df.insert(loc=0, column='root', value=np.zeros(len(df)))
   def init_last_col(row):
     return json.dumps(None if row[-1]=='?' \
                       else {
                         'value': row[-1],
                         'color': None,
-                        'subnodes':0,
+                        'subnodes': 0,
                         'subsum': row[-1] if isinstance(row[-1], (int, float)) else 0,
                         'children': None
                       }
@@ -58,7 +66,7 @@ def df_to_hiercolor(df):
       dict_json = json.loads(str_json)
       converted_jsons += [dict_json]
       if dict_json:
-        subsum += dict_json['value']
+        subsum += dict_json['subsum']
         subnodes += 1 + dict_json['subnodes'] # parent + children
       else:
         subnodes += 1
@@ -84,12 +92,12 @@ def df_to_hiercolor(df):
     df.drop(last_col, inplace=True, axis=1)
   return json.loads(df.iloc[0, 0])
 
-def hier_circle_color(hier, x=0, y=0, th=0, r=1):
+def hier_circle_color(hier, x=0, y=0, th=0, r=90):
   if hier:
     children = hier['children']
 
     # Plot current point
-    hier['color'] = (x, y)
+    hier['color'] = [x, y]
     
     if children:
       num_children = len(children)
@@ -159,7 +167,7 @@ def hiercolor_to_table(hier, color_table=False):
 
   return table
 
-def table_color_maps(hier, keep_root=False, color_of_missing=(0, 0), L=50, L_alternating=None):
+def table_color_maps(hier, keep_root=False, color_of_missing=[0, 0], L=50, L_alternating=None):
   if L < 0 or 100 < L:
     print('Input Error in table_color_maps()!')
     print('L has to be a value between 0 and 100')
@@ -172,7 +180,7 @@ def table_color_maps(hier, keep_root=False, color_of_missing=(0, 0), L=50, L_alt
   nrows = len(color_table)
   ncols = len(color_table[0])
 
-  color_of_missing = (L,) + color_of_missing
+  color_of_missing = [L] + color_of_missing
   if not L_alternating:
     L_alternating = L
 
@@ -185,14 +193,14 @@ def table_color_maps(hier, keep_root=False, color_of_missing=(0, 0), L=50, L_alt
       L_row = L_alternating
 
     if color_table[r][-1]:
-      row_color = (L_row,) + color_table[r][-1]
+      row_color = [L_row] + color_table[r][-1]
     for c in range(ncols):
       if color_table[r][c] == None:
         color_table[r][c] = color_of_missing
         if color_table[r][c-1] != color_of_missing:
           row_color = color_table[r][c-1]
       else:
-        color_table[r][c] = (L_row,) + color_table[r][c]
+        color_table[r][c] = [L_row] + color_table[r][c]
     row_colors += [row_color]
 
   if keep_root:
@@ -201,6 +209,12 @@ def table_color_maps(hier, keep_root=False, color_of_missing=(0, 0), L=50, L_alt
     for r in range(nrows):
       del color_table[r][0]
     return color_table, row_colors
+
+def luv_to_rgb(luv_colors):
+  if len(np.shape(luv_colors)) == 2:
+    return luv2rgb(np.array([luv_colors]))[0]
+  elif len(np.shape(luv_colors)) == 3:
+    return luv2rgb(np.array(luv_colors))
 
 def print_table(table):
   for row in table:
@@ -217,6 +231,23 @@ def hier_to_sunburst_data():
      Prepare HierColor for dash-sunburst diagram
   """
   pass
+
+
+
+def table_hiercolor(df, keep_root=False, color_of_missing=[0, 0], 
+                    L=50, L_alternating=None):
+  df.fillna('?', inplace=True)
+  hier = df_to_hiercolor(df)
+  hier_circle_color(hier)
+  color_table, row_colors = \
+    table_color_maps(hier, 
+                     keep_root = keep_root, 
+                     color_of_missing = color_of_missing,
+                     L = L,
+                     L_alternating = L_alternating)
+  return luv_to_rgb(color_table), luv_to_rgb(row_colors)
+
+
 
 
 if __name__ == '__main__':
@@ -260,26 +291,10 @@ if __name__ == '__main__':
   3,2,6
   """
   
-  df = pd.read_csv(StringIO(text_input_1), delimiter=',')
-  df.fillna('?', inplace=True)
-  #df.fillna(None, inplace=True)
+  df = pd.read_csv(StringIO(text_input_3), delimiter=',')
   
-  print(df)
-  hier = df_to_hiercolor(df)
-  hier_circle_color(hier)
-  print_json(hier)
-  print(type(hier))
-  print()
-  table = hiercolor_to_table(hier, color_table=False)
-  color_table = hiercolor_to_table(hier, color_table=True)
-  
-  print('Table')
-  print(table)
-  print_table(table)
-  print()
-
   print('Table Color Mappings')
-  color_table, row_colors = table_color_maps(hier, keep_root=False)
+  color_table, row_colors = table_hiercolor(df, L=50, L_alternating=51)
   print('Color Table')
   print_color_table(color_table)
   print('Row Colors')
@@ -287,14 +302,28 @@ if __name__ == '__main__':
     print(col)
   print()
 
+  #df = pd.read_csv('data/titanic.txt')
+  #df['Age'] = df['Age'].apply(pd.to_numeric, errors = 'coerce')
+  #def age_groups(age):
+  #  if   -1 < age and age < 17: return 'child'
+  #  elif 16 < age and age < 26: return 'youth'
+  #  elif 25 < age and age < 61: return 'adult'
+  #  elif 60 < age: return 'old'
+  #  else: return '?'
+  #df['AgeRange'] = df['Age'].apply(age_groups)
+  #df.drop(['Age'], axis=1, inplace=True)
+  #df = df.groupby(['Sex', 'AgeRange', 'Pclass', 'Survived']) \
+  #          .size() \
+  #          .reset_index(name='Count')
+  #print(df.head(5))
+  #
+  #print('Table Color Mappings')
+  #color_table, row_colors = table_hiercolor(df, L=50, L_alternating=51)
+  #print('Color Table')
+  #print_color_table(color_table)
+  #print('Row Colors')
+  #for col in row_colors:
+  #  print(col)
+  #print()
 
-
-  print('Alternating Table Color Mappings')
-  color_table, row_colors = table_color_maps(hier, keep_root=False, L_alternating=51)
-  print('Color Table')
-  print_color_table(color_table)
-  print('Row Colors')
-  for col in row_colors:
-    print(col)
-  print()
 

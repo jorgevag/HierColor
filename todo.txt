@@ -1,0 +1,5 @@
+TODO: 
+* The columns should have alternating lighter and darker 
+  colors! Obtain this by changing L!
+  (then it will be easy to read the rows even if they end 
+   up with the same color)
